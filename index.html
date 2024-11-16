@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS 180 Project 4</title>
+</head>
+<body style="font-family: Verdana;">
+    <center><h1>CS 180 Project 5 - Geoffrey Xiang</h1></center>
+    <h2>Part A - The Power of Diffusion Models!</h2>
+    <h3>Part 0: Setup</h3>
+    <p>
+	I started by using the DeepFloyd IF model and precomputed text embeddings to generate images. When playing around with the number of inference steps, there tended to be higher quality of output (more details or realistic) with a higher number of steps. The results are shown below using a random seed of 79:
+    </p>
+    <center><h4>num_inference_steps=20</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/snowy_20.png">
+	    <figcaption>An Oil Painting of a Snowy Mountain</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/hat_man_20.png"/>
+	    <figcaption>A Man Wearing a Hat</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_ship_20.png"/>
+	    <figcaption>A Rocket Ship</figcaption>
+	</figure>
+    </div>
+    <center><h4>num_inference_steps=50</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/snowy_50.png">
+	    <figcaption>An Oil Painting of a Snowy Mountain</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/hat_man_50.png"/>
+	    <figcaption>A Man Wearing a Hat</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_ship_50.png"/>
+	    <figcaption>A Rocket Ship</figcaption>
+	</figure>
+    </div>
+    <p>
+	Here are some of the images I took for mosaic building:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/1.jpeg">
+	    <figcaption>Kitchen (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/2.jpeg"/>
+	    <figcaption>Kitchen (Right)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/room_left.jpeg">
+	    <figcaption>Desk (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/room_right.jpeg"/>
+	    <figcaption>Desk (Right)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/stuffs_top.jpeg">
+	    <figcaption>Room (Top)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/stuffs_bottom.jpeg"/>
+	    <figcaption>Room (Bottom)</figcaption>
+	</figure>
+    </div>
+    <h3>Recover Homographies</h3>
+    <p>
+	We first need to label some correspondence points on our images. Then, we can find a projective transformation between the correspondence points of one image and the correspondence points of another image. This transformation is our homography H, and we can use H to then warp an entire image to the viewpoint of another image or object. 
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/special/labeled_1.jpeg">
+	    <figcaption>Kitchen (Left) Correspondence Points</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/labeled_2.jpeg"/>
+	    <figcaption>Kitchen (Right) Corrspondence Points</figcaption>
+	</figure>
+    </div>
+    <p>
+	To actually solve for the homography matrix, we use each of the correpondencies to set up several equations (one equation per correspondence) in the form Hp = p', where H is our homography matrix, p is one of the points with the form [x, y, 1].T and p' is the corresponding point on the other image with the form [wx', wy', w].T, where w is the scaling factor. Expanding each equation out, we can convert them each to the following form:
+    </p>
+	<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+	  <mtable displaystyle="true" columnalign="right left" columnspacing="0em" rowspacing="3pt">
+	    <mtr>
+	      <mtd>
+		<mrow data-mjx-texclass="INNER">
+		  <mo data-mjx-texclass="OPEN">[</mo>
+		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
+		    <mtr>
+		      <mtd>
+			<mi>x</mi>
+		      </mtd>
+		      <mtd>
+			<mi>y</mi>
+		      </mtd>
+		      <mtd>
+			<mn>1</mn>
+		      </mtd>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mo>&#x2212;</mo>
+			<mi>x</mi>
+			<msup>
+			  <mi>x</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		      <mtd>
+			<mo>&#x2212;</mo>
+			<mi>y</mi>
+			<msup>
+			  <mi>x</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mn>0</mn>
+		      </mtd>
+		      <mtd>
+			<mi>x</mi>
+		      </mtd>
+		      <mtd>
+			<mi>y</mi>
+		      </mtd>
+		      <mtd>
+			<mn>1</mn>
+		      </mtd>
+		      <mtd>
+			<mo>&#x2212;</mo>
+			<mi>x</mi>
+			<msup>
+			  <mi>y</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		      <mtd>
+			<mo>&#x2212;</mo>
+			<mi>y</mi>
+			<msup>
+			  <mi>y</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		    </mtr>
+		  </mtable>
+		  <mo data-mjx-texclass="CLOSE">]</mo>
+		</mrow>
+		<mrow data-mjx-texclass="INNER">
+		  <mo data-mjx-texclass="OPEN">[</mo>
+		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
+		    <mtr>
+		      <mtd>
+			<mi>a</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>b</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>c</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>d</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>e</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>f</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>g</mi>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<mi>h</mi>
+		      </mtd>
+		    </mtr>
+		  </mtable>
+		  <mo data-mjx-texclass="CLOSE">]</mo>
+		</mrow>
+		<mo>=</mo>
+		<mrow data-mjx-texclass="INNER">
+		  <mo data-mjx-texclass="OPEN">[</mo>
+		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
+		    <mtr>
+		      <mtd>
+			<msup>
+			  <mi>x</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		    </mtr>
+		    <mtr>
+		      <mtd>
+			<msup>
+			  <mi>y</mi>
+			  <mo data-mjx-alternate="1">&#x2032;</mo>
+			</msup>
+		      </mtd>
+		    </mtr>
+		  </mtable>
+		  <mo data-mjx-texclass="CLOSE">]</mo>
+		</mrow>
+	      </mtd>
+	    </mtr>
+	  </mtable>
+	</math>
+    <p>
+	Stacking each of these equations, we can solve for a, b, ..., h using least squares, and then construct H. 
+    </p>
+    <h3>Warp the Images/Image Rectification</h3>
+    <p>
+	Using the homographies computed, we can now start warping our images. In the images I took, I know that at least one of the objects is rectangular. It doesn't completely look rectangular if you measure it in the image due to how the viewing angle distorts the image, but with this knowledge, we can make it look rectangular. Taking the corners of the object as correspondencies, we can warp the object into the desired rectangle, giving us the viewpoint of looking at the object straight on. For the warping process, I used inverse warping and interpolation. 
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/cards.jpeg">
+	    <figcaption>Cards</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/warped_cards.jpeg"/>
+	    <figcaption>Rectified Cards</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/cards_angled.jpeg">
+	    <figcaption>Cards with More Angle</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/warped_cards_angled.jpeg"/>
+	    <figcaption>Rectified Cards</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/chicken_tendies.jpeg">
+	    <figcaption>Chicken Tenders</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/warped_chicken_tendies.jpeg"/>
+	    <figcaption>Rectified Chicken Tendies</figcaption>
+	</figure>
+    </div>
+    <h3>Blend the Images into a Mosaic</h3>
+    <p>
+	We can now start to create mosaics from images. The image warping process is the same as in the previous step. Instead of rectangular homographies, I manually selected key features (mostly corners) within each image to help with the warping. After aligning the images, I used the bwdist distance transform metric to create a mask for each image. From here, I used a 2-band Laplacian Stack blending approach to blend the overlapping regions smoothly. The low frequencies were blended using a linear combination weighted by the distance transform metric, and the high frequencies were taken from the larger corresponding distance tranform. 
+    </p>
+    <p>
+	For example, from these two images (after being warped to each other), here is the distance transform for each image: 
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/special/warped_final_1.jpeg">
+	    <figcaption>Kitchen (Left Warped onto Right)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/warped_final_2.jpeg"/>
+	    <figcaption>Kitchen (Right)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/special/distance_1.jpeg">
+	    <figcaption>Distance Transform (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/distance_2.jpeg"/>
+	    <figcaption>Distance Transform (Right)</figcaption>
+	</figure>
+    </div>
+    <p>
+	Using the process described earlier with the distance transform and 2-band Laplacian Stacks, we can finish making these mosaics! Here are the results:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/1.jpeg">
+	    <figcaption>Kitchen (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/mosaic_1-2.jpeg"/>
+	    <figcaption>Mosaic<figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/2.jpeg"/>
+	    <figcaption>Kitchen (Right)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/room_left.jpeg">
+	    <figcaption>Desk (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/mosaic_room_left-room_right.jpeg"/>
+	    <figcaption>Mosaic<figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/room_right.jpeg"/>
+	    <figcaption>Desk (Right)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/stuffs_top.jpeg">
+	    <figcaption>Room (Top)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/mosaic_stuffs_bottom-stuffs_top.jpeg"/>
+	    <figcaption>Mosaic<figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/stuffs_bottom.jpeg"/>
+	    <figcaption>Room (Bottom)</figcaption>
+	</figure>
+    </div>
+    <h2>Part B - Feature Matching for Autostitching</h2>
+    <h3>Harris Interest Point Detector</h3>
+    <p>
+	We first need to get correspondence points to use between our images. We can get a ton of potential correspondence points using the Harris Interest Point Detector. This tool takes in a grayscale image and finds "corners" within the image (not actual corners, but regions that have the property of corners where any shift changes how the region looks). Here are the interest points on a pair of images of my kitchen (used in part A):
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/1.jpeg">
+	    <figcaption>Kitchen (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/1_harris_points.jpeg"/>
+	    <figcaption>Harris Corners (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/2_harris_points.jpeg"/>
+	    <figcaption>Harris Corners (Right)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/2.jpeg"/>
+	    <figcaption>Kitchen (Right)</figcaption>
+	</figure>
+    </div>
+    <h3>Adaptive Non-Maximal Suppression</h3>
+    <p>
+	With these potential points for correspondences, we can start filtering for the best ones to use in our mosaic stitching process. To do this, we use adaptive non-maximal suppression. For each corner we found in the previous step, we find the closest corner such that the H value of that point multiplied by some robustness constant is greater than the H value of the current corner. The distance between the two points becomes the 'radius' of the current corner. Then we take the 300 corners with the largest radius as our narrowed set of interest points. This process of using the largest radii lets us have a larger spread of points throughout the image as well as use the corners that are 'most dominant' in their spatial neighborhood. Here are the results narrowing down the potential correspondence points further with ANMS:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/special/1_harris_points.jpeg">
+	    <figcaption>Harris Corners (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/1_anms_points.jpeg"/>
+	    <figcaption>ANMS Filtering (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/2_anms_points.jpeg"/>
+	    <figcaption>ANMS Filtering (Right)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/special/2_harris_points.jpeg"/>
+	    <figcaption>Harris Corners (Right)</figcaption>
+	</figure>
+    </div>
+    <h3>Feature Descriptor Extraction</h3>
+    <p>
+	After picking the potential correspondence points, we want to extract features around those points so that we can do matching. For each feature, we take a 40x40 patch of pixels around each corner. Then, we downsample that patch to an 8x8 patch so that we match on the core components of the image rather than fine details found within the high frequencies. Finally, we normalize the 8x8 patch so that comparing patches between two different images is more robust to brightness differences. Using these patches, we can then move on to matching the corners!
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="full-size" src="assets/special/1_40x40_patch_1.jpeg">
+	    <figcaption>40x40 Patch</figcaption>
+	</figure>
+	<figure>
+	    <img class="full-size" src="assets/special/1_8x8_patch_1.jpeg"/>
+	    <figcaption>Downsampled 8x8 Patch</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="full-size" src="assets/special/1_40x40_patch_2.jpeg">
+	    <figcaption>40x40 Patch</figcaption>
+	</figure>
+	<figure>
+	    <img class="full-size" src="assets/special/1_8x8_patch_2.jpeg"/>
+	    <figcaption>Downsampled 8x8 Patch</figcaption>
+	</figure>
+    </div>
+    <h3>Feature Matching</h3>
+    <p>
+	Now that we have features for each potential correspondence point, we can match the features together to finally create those correspondencies. To do this, we take each feature and use the L2 distance metric to compute the best match feature within the other image. In this process, we also keep track of the second closest feature within the other image, allowing us to use Lowe's trick of only preserving matches where the ratio of the distance from the feature to the strongest match and the second strongest match is greater than a threshold. This trick ensures that each match is by far the best feature match for each chosen correspondency. Here are the correspondencies found using this process for the two kitchen images:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="solo" src="assets/special/1-2_correspondencies.jpeg"/>
+	    <figcaption>Correspondencies in the Kitchen</figcaption>
+	</figure>
+    </div>
+    <h3>RANSAC</h3>
+    <p>
+	The feature matching process actually works really well for the two kitchen images, and using the correspondence points leads to a pretty clean mosaic. However, to make this process more robust for more images, we need to implement RANSAC. This algorithm works by first choosing 4 of the correspondencies at random and computing the homography matrix H using them. Then, we calculate all of the "inliers" for that homography, which are all of the correspondencies where after warping the first image's points, they fall within a distance of epsilon from the corresponding point in the second image. After repeating this process 10,000 times, we take the largest group of inliers that we found so far and compute a final homography matrix. This gives us a very clean transformation between the two images. Here is the result for the kitchen images we've been using so far:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/1.jpeg"/>
+	    <figcaption>Kitchen (Left)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/auto_mosaic_1-2.jpeg"/>
+	    <figcaption>Automatically Stitched Mosaic</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/2.jpeg"/>
+	    <figcaption>Kitchen (Right)</figcaption>
+	</figure>
+    </div>
+    <h3>Results</h3>
+    <p>
+	Here are the final results using automatic feature matching and RANSAC to automate mosaic stitching! We can now compare them with the manual process from part A. They seem very similar, but zooming into them each shows slightly more cleanly blended results for the automatic process.
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/mosaic_1-2.jpeg"/>
+	    <figcaption>Manual</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/auto_mosaic_1-2.jpeg"/>
+	    <figcaption>Automatic</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/mosaic_room_left-room_right.jpeg"/>
+	    <figcaption>Manual</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/auto_mosaic_room_left-room_right.jpeg"/>
+	    <figcaption>Automatic</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/mosaic_stuffs_bottom-stuffs_top.jpeg"/>
+	    <figcaption>Manual</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/auto_mosaic_stuffs_bottom-stuffs_top.jpeg"/>
+	    <figcaption>Automatic</figcaption>
+	</figure>
+    </div>
+    <h3>Conclusion</h3>
+    <p>
+	This project was pretty interesting, and it was great to be able to automate a process that would normally require a lot of effort in manual labeling.
+    </p>
+    <p>
+	For part A, one of the most interesting things I learned was how well the pictures had to be taken. Despite my best efforts zooming into each pixel and ensuring the labeliing process was as good as it could be, if I moved the center of projection for the images slightly, my image warping and mosaic stiching process would still lead to lots of artifacts and ultimately ugly mosaics.
+    </p>
+    <p>
+	For part B, one of the coolest things I learned was how well the feature matching process worked, especially with RANSAC. In the intitial stages of finding Harris Corners and using ANMS, I saw there were still a lot of corners that did not have corresponding corners across the two images. I was really impressed by how the feature matching process could be really simple (l2 distances and Lowe's trick), yet it could still having incorrect correspondencies that would completely mess up the homography matrix.
+    </p>
+
+</body>
+<style>
+    .container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+    }
+
+    figure {
+	display: table;
+	margin-left: 5px;
+	margin-right: 5px;
+    }
+
+    figcaption {
+	display: table-caption;
+	caption-side: bottom;
+	text-align: center;
+	font-size: 14px;
+    }
+
+    img {
+	max-height: 350px;
+	max-width: 300px;
+	border: 1px solid black;
+    }
+
+    .full-size {
+	width: 300px;
+    }
+
+    .solo {
+	max-height: 2000px;
+	max-width: 1000px;
+	width: 1000px;
+    }
+</style>
+</html>
