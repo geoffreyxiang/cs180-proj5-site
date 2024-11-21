@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS 180 Project 4</title>
+    <title>CS 180 Project 5</title>
 </head>
 <body style="font-family: Verdana;">
     <center><h1>CS 180 Project 5 - Geoffrey Xiang</h1></center>
@@ -43,461 +43,714 @@
 	    <figcaption>A Rocket Ship</figcaption>
 	</figure>
     </div>
+    <h3>Part 1: Sampling Loops</h3>
+    <h4>1.1 Implementing the Forward Process</h4>
     <p>
-	Here are some of the images I took for mosaic building:
+	Since diffusion requires having clean images with varying levels of noise added to them, I first implemented the forward() function for adding noise to an image. Here are the results on the test image of the Campanile with increasing levels of noise:
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/1.jpeg">
-	    <figcaption>Kitchen (Left)</figcaption>
+	    <img src="assets/campanile.png">
+	    <figcaption>Campanile (Original)</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/2.jpeg"/>
-	    <figcaption>Kitchen (Right)</figcaption>
+	    <img src="assets/campanile_250.png"/>
+	    <figcaption>Campanile (t=250)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_500.png">
+	    <figcaption>Campanile (t=500)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_750.png"/>
+	    <figcaption>Campanile (t=750)</figcaption>
 	</figure>
     </div>
-    <div class="container">
-	<figure>
-	    <img src="assets/room_left.jpeg">
-	    <figcaption>Desk (Left)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/room_right.jpeg"/>
-	    <figcaption>Desk (Right)</figcaption>
-	</figure>
-    </div>
-    <div class="container">
-	<figure>
-	    <img src="assets/stuffs_top.jpeg">
-	    <figcaption>Room (Top)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/stuffs_bottom.jpeg"/>
-	    <figcaption>Room (Bottom)</figcaption>
-	</figure>
-    </div>
-    <h3>Recover Homographies</h3>
+    <h4>1.2 Classical Denoising</h4>
     <p>
-	We first need to label some correspondence points on our images. Then, we can find a projective transformation between the correspondence points of one image and the correspondence points of another image. This transformation is our homography H, and we can use H to then warp an entire image to the viewpoint of another image or object. 
+	I first tried to denoise using Gaussian blur, but it didn't really work well at all. It seemed to eliminate some of the noise at lower noise levels, but it also got rid of details in the original image. Here are the results using the noisy images from the previous part.
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/special/labeled_1.jpeg">
-	    <figcaption>Kitchen (Left) Correspondence Points</figcaption>
+	    <img src="assets/campanile_250.png"/>
+	    <figcaption>Campanile (t=250)</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/special/labeled_2.jpeg"/>
-	    <figcaption>Kitchen (Right) Corrspondence Points</figcaption>
+	    <img src="assets/campanile_500.png">
+	    <figcaption>Campanile (t=500)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_750.png"/>
+	    <figcaption>Campanile (t=750)</figcaption>
 	</figure>
     </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/blur_campanile_250.png"/>
+	    <figcaption>Campanile "Denoised" (t=250)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/blur_campanile_500.png">
+	    <figcaption>Campanile "Denoised" (t=500)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/blur_campanile_750.png"/>
+	    <figcaption>Campanile "Denoised" (t=750)</figcaption>
+	</figure>
+    </div>
+    <h4>1.3 One-Step Denoising</h4>
     <p>
-	To actually solve for the homography matrix, we use each of the correpondencies to set up several equations (one equation per correspondence) in the form Hp = p', where H is our homography matrix, p is one of the points with the form [x, y, 1].T and p' is the corresponding point on the other image with the form [wx', wy', w].T, where w is the scaling factor. Expanding each equation out, we can convert them each to the following form:
-    </p>
-	<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-	  <mtable displaystyle="true" columnalign="right left" columnspacing="0em" rowspacing="3pt">
-	    <mtr>
-	      <mtd>
-		<mrow data-mjx-texclass="INNER">
-		  <mo data-mjx-texclass="OPEN">[</mo>
-		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
-		    <mtr>
-		      <mtd>
-			<mi>x</mi>
-		      </mtd>
-		      <mtd>
-			<mi>y</mi>
-		      </mtd>
-		      <mtd>
-			<mn>1</mn>
-		      </mtd>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mo>&#x2212;</mo>
-			<mi>x</mi>
-			<msup>
-			  <mi>x</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		      <mtd>
-			<mo>&#x2212;</mo>
-			<mi>y</mi>
-			<msup>
-			  <mi>x</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mn>0</mn>
-		      </mtd>
-		      <mtd>
-			<mi>x</mi>
-		      </mtd>
-		      <mtd>
-			<mi>y</mi>
-		      </mtd>
-		      <mtd>
-			<mn>1</mn>
-		      </mtd>
-		      <mtd>
-			<mo>&#x2212;</mo>
-			<mi>x</mi>
-			<msup>
-			  <mi>y</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		      <mtd>
-			<mo>&#x2212;</mo>
-			<mi>y</mi>
-			<msup>
-			  <mi>y</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		    </mtr>
-		  </mtable>
-		  <mo data-mjx-texclass="CLOSE">]</mo>
-		</mrow>
-		<mrow data-mjx-texclass="INNER">
-		  <mo data-mjx-texclass="OPEN">[</mo>
-		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
-		    <mtr>
-		      <mtd>
-			<mi>a</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>b</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>c</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>d</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>e</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>f</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>g</mi>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<mi>h</mi>
-		      </mtd>
-		    </mtr>
-		  </mtable>
-		  <mo data-mjx-texclass="CLOSE">]</mo>
-		</mrow>
-		<mo>=</mo>
-		<mrow data-mjx-texclass="INNER">
-		  <mo data-mjx-texclass="OPEN">[</mo>
-		  <mtable columnalign="center" columnspacing="1em" rowspacing="4pt">
-		    <mtr>
-		      <mtd>
-			<msup>
-			  <mi>x</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		    </mtr>
-		    <mtr>
-		      <mtd>
-			<msup>
-			  <mi>y</mi>
-			  <mo data-mjx-alternate="1">&#x2032;</mo>
-			</msup>
-		      </mtd>
-		    </mtr>
-		  </mtable>
-		  <mo data-mjx-texclass="CLOSE">]</mo>
-		</mrow>
-	      </mtd>
-	    </mtr>
-	  </mtable>
-	</math>
-    <p>
-	Stacking each of these equations, we can solve for a, b, ..., h using least squares, and then construct H. 
-    </p>
-    <h3>Warp the Images/Image Rectification</h3>
-    <p>
-	Using the homographies computed, we can now start warping our images. In the images I took, I know that at least one of the objects is rectangular. It doesn't completely look rectangular if you measure it in the image due to how the viewing angle distorts the image, but with this knowledge, we can make it look rectangular. Taking the corners of the object as correspondencies, we can warp the object into the desired rectangle, giving us the viewpoint of looking at the object straight on. For the warping process, I used inverse warping and interpolation. 
+	Now that we know the classical denoising technique isn't great for our purposes, I moved on to using the pretrained diffusion model. The UNet given estimates the noise at a given step for an image, which helps use eliminate the noise from the image. This works great at getting rid of the sandy consistency of the noise in the images, but at higher noise levels, the denoised images come out looking more and more blurry and different than the original image. 
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/cards.jpeg">
-	    <figcaption>Cards</figcaption>
+	    <img src="assets/campanile_250.png"/>
+	    <figcaption>Campanile (t=250)</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/warped_cards.jpeg"/>
-	    <figcaption>Rectified Cards</figcaption>
+	    <img src="assets/campanile_500.png">
+	    <figcaption>Campanile (t=500)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_750.png"/>
+	    <figcaption>Campanile (t=750)</figcaption>
 	</figure>
     </div>
     <div class="container">
 	<figure>
-	    <img src="assets/cards_angled.jpeg">
-	    <figcaption>Cards with More Angle</figcaption>
+	    <img src="assets/one_denoise_campanile_250.png"/>
+	    <figcaption>Campanile "Denoised" (t=250)</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/warped_cards_angled.jpeg"/>
-	    <figcaption>Rectified Cards</figcaption>
+	    <img src="assets/one_denoise_campanile_500.png">
+	    <figcaption>Campanile "Denoised" (t=500)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/one_denoise_campanile_750.png"/>
+	    <figcaption>Campanile "Denoised" (t=750)</figcaption>
 	</figure>
     </div>
-    <div class="container">
-	<figure>
-	    <img src="assets/chicken_tendies.jpeg">
-	    <figcaption>Chicken Tenders</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/warped_chicken_tendies.jpeg"/>
-	    <figcaption>Rectified Chicken Tendies</figcaption>
-	</figure>
-    </div>
-    <h3>Blend the Images into a Mosaic</h3>
+    <h4>1.4 Iterative Denoising</h4>
     <p>
-	We can now start to create mosaics from images. The image warping process is the same as in the previous step. Instead of rectangular homographies, I manually selected key features (mostly corners) within each image to help with the warping. After aligning the images, I used the bwdist distance transform metric to create a mask for each image. From here, I used a 2-band Laplacian Stack blending approach to blend the overlapping regions smoothly. The low frequencies were blended using a linear combination weighted by the distance transform metric, and the high frequencies were taken from the larger corresponding distance tranform. 
-    </p>
-    <p>
-	For example, from these two images (after being warped to each other), here is the distance transform for each image: 
+	To solve the issue of the quality significantly degrading at higher noise levels, I moved on to iterative denoising. Instead of doing the denoising process in a single step, I now denoise iteratively with a stride of 30 steps to save some compute/time. Here are the results:
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/special/warped_final_1.jpeg">
-	    <figcaption>Kitchen (Left Warped onto Right)</figcaption>
+	    <img src="assets/denoise_campanile_90.png"/>
+	    <figcaption>Noisy Campanile at t=90</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/special/warped_final_2.jpeg"/>
-	    <figcaption>Kitchen (Right)</figcaption>
+	    <img src="assets/denoise_campanile_240.png">
+	    <figcaption>Noisy Campanile at t=240</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/denoise_campanile_390.png"/>
+	    <figcaption>Noisy Campanile at t=390</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/denoise_campanile_540.png">
+	    <figcaption>Noisy Campanile at t=540</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/denoise_campanile_690.png"/>
+	    <figcaption>Noisy Campanile at t=690</figcaption>
 	</figure>
     </div>
     <div class="container">
 	<figure>
-	    <img src="assets/special/distance_1.jpeg">
-	    <figcaption>Distance Transform (Left)</figcaption>
+	    <img src="assets/campanile.png"/>
+	    <figcaption>Campanile (Original)</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/special/distance_2.jpeg"/>
-	    <figcaption>Distance Transform (Right)</figcaption>
+	    <img src="assets/it_denoise_campanile_500.png">
+	    <figcaption>Campanile (Iterative Denoised) at t=500</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/one_denoise_campanile_500.png"/>
+	    <figcaption>Campanile (One-Step Denoised) at t=500</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/blur_campanile_500.png"/>
+	    <figcaption>Campanile (Gaussian Blurred) at t=500</figcaption>
 	</figure>
     </div>
+    <h4>1.5 Diffusion Model Sampling</h4>
     <p>
-	Using the process described earlier with the distance transform and 2-band Laplacian Stacks, we can finish making these mosaics! Here are the results:
+	With the `iterative_denoise` function implemented, we can actually use it to generate images from scratch. Using the general prompt "a high quality photo," here were the results of image generation:
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/1.jpeg">
-	    <figcaption>Kitchen (Left)</figcaption>
+	    <img src="assets/gen_im1.png"/>
 	</figure>
 	<figure>
-	    <img src="assets/mosaic_1-2.jpeg"/>
-	    <figcaption>Mosaic<figcaption>
+	    <img src="assets/gen_im2.png">
 	</figure>
 	<figure>
-	    <img src="assets/2.jpeg"/>
-	    <figcaption>Kitchen (Right)</figcaption>
+	    <img src="assets/gen_im3.png"/>
+	</figure>
+	<figure>
+	    <img src="assets/gen_im4.png">
+	</figure>
+	<figure>
+	    <img src="assets/gen_im5.png"/>
 	</figure>
     </div>
-    <div class="container">
-	<figure>
-	    <img src="assets/room_left.jpeg">
-	    <figcaption>Desk (Left)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/mosaic_room_left-room_right.jpeg"/>
-	    <figcaption>Mosaic<figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/room_right.jpeg"/>
-	    <figcaption>Desk (Right)</figcaption>
-	</figure>
-    </div>
-    <div class="container">
-	<figure>
-	    <img src="assets/stuffs_top.jpeg">
-	    <figcaption>Room (Top)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/mosaic_stuffs_bottom-stuffs_top.jpeg"/>
-	    <figcaption>Mosaic<figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/stuffs_bottom.jpeg"/>
-	    <figcaption>Room (Bottom)</figcaption>
-	</figure>
-    </div>
-    <h2>Part B - Feature Matching for Autostitching</h2>
-    <h3>Harris Interest Point Detector</h3>
+    <h4>1.6 Classifier-Free Guidance (CFG)</h4>
     <p>
-	We first need to get correspondence points to use between our images. We can get a ton of potential correspondence points using the Harris Interest Point Detector. This tool takes in a grayscale image and finds "corners" within the image (not actual corners, but regions that have the property of corners where any shift changes how the region looks). Here are the interest points on a pair of images of my kitchen (used in part A):
+	While some images like the first image look good, others are somewhat nonsensical like the fifth one. The images also look kind of dully and faded, and we can do better with Classifier-Free Guidance. Using a CFG scale of 7 and the null prompt (""), here are the results of image generation with CFG:
     </p>
     <div class="container">
 	<figure>
-	    <img src="assets/1.jpeg">
-	    <figcaption>Kitchen (Left)</figcaption>
+	    <img src="assets/cfg1.png"/>
 	</figure>
 	<figure>
-	    <img src="assets/special/1_harris_points.jpeg"/>
-	    <figcaption>Harris Corners (Left)</figcaption>
+	    <img src="assets/cfg2.png">
 	</figure>
 	<figure>
-	    <img src="assets/special/2_harris_points.jpeg"/>
-	    <figcaption>Harris Corners (Right)</figcaption>
+	    <img src="assets/cfg3.png"/>
 	</figure>
 	<figure>
-	    <img src="assets/2.jpeg"/>
-	    <figcaption>Kitchen (Right)</figcaption>
-	</figure>
-    </div>
-    <h3>Adaptive Non-Maximal Suppression</h3>
-    <p>
-	With these potential points for correspondences, we can start filtering for the best ones to use in our mosaic stitching process. To do this, we use adaptive non-maximal suppression. For each corner we found in the previous step, we find the closest corner such that the H value of that point multiplied by some robustness constant is greater than the H value of the current corner. The distance between the two points becomes the 'radius' of the current corner. Then we take the 300 corners with the largest radius as our narrowed set of interest points. This process of using the largest radii lets us have a larger spread of points throughout the image as well as use the corners that are 'most dominant' in their spatial neighborhood. Here are the results narrowing down the potential correspondence points further with ANMS:
-    </p>
-    <div class="container">
-	<figure>
-	    <img src="assets/special/1_harris_points.jpeg">
-	    <figcaption>Harris Corners (Left)</figcaption>
+	    <img src="assets/cfg4.png">
 	</figure>
 	<figure>
-	    <img src="assets/special/1_anms_points.jpeg"/>
-	    <figcaption>ANMS Filtering (Left)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/special/2_anms_points.jpeg"/>
-	    <figcaption>ANMS Filtering (Right)</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/special/2_harris_points.jpeg"/>
-	    <figcaption>Harris Corners (Right)</figcaption>
+	    <img src="assets/cfg5.png"/>
 	</figure>
     </div>
-    <h3>Feature Descriptor Extraction</h3>
+    <h4>1.7 Image-to-image Translation</h4>
     <p>
-	After picking the potential correspondence points, we want to extract features around those points so that we can do matching. For each feature, we take a 40x40 patch of pixels around each corner. Then, we downsample that patch to an 8x8 patch so that we match on the core components of the image rather than fine details found within the high frequencies. Finally, we normalize the 8x8 patch so that comparing patches between two different images is more robust to brightness differences. Using these patches, we can then move on to matching the corners!
+	Now, I use the SDEdit algorithm to implement image-to-image translation. Given an image, we can modify it using this algorithm by adding noise and then 'denoising' it using the functions I impelemented previously. Here are the results:
     </p>
+    <center><h4>Campanile</h4></center>
     <div class="container">
 	<figure>
-	    <img class="full-size" src="assets/special/1_40x40_patch_1.jpeg">
-	    <figcaption>40x40 Patch</figcaption>
+	    <img src="assets/campanile1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
 	</figure>
 	<figure>
-	    <img class="full-size" src="assets/special/1_8x8_patch_1.jpeg"/>
-	    <figcaption>Downsampled 8x8 Patch</figcaption>
+	    <img src="assets/campanile3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
 	</figure>
     </div>
     <div class="container">
 	<figure>
-	    <img class="full-size" src="assets/special/1_40x40_patch_2.jpeg">
-	    <figcaption>40x40 Patch</figcaption>
+	    <img src="assets/campanile7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
 	</figure>
 	<figure>
-	    <img class="full-size" src="assets/special/1_8x8_patch_2.jpeg"/>
-	    <figcaption>Downsampled 8x8 Patch</figcaption>
+	    <img src="assets/campanile10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
 	</figure>
-    </div>
-    <h3>Feature Matching</h3>
-    <p>
-	Now that we have features for each potential correspondence point, we can match the features together to finally create those correspondencies. To do this, we take each feature and use the L2 distance metric to compute the best match feature within the other image. In this process, we also keep track of the second closest feature within the other image, allowing us to use Lowe's trick of only preserving matches where the ratio of the distance from the feature to the strongest match and the second strongest match is greater than a threshold. This trick ensures that each match is by far the best feature match for each chosen correspondency. Here are the correspondencies found using this process for the two kitchen images:
-    </p>
-    <div class="container">
 	<figure>
-	    <img class="solo" src="assets/special/1-2_correspondencies.jpeg"/>
-	    <figcaption>Correspondencies in the Kitchen</figcaption>
+	    <img src="assets/campanile20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile.png"/>
+	    <figcaption>Campanile (Original)</figcaption>
 	</figure>
     </div>
-    <h3>RANSAC</h3>
-    <p>
-	The feature matching process actually works really well for the two kitchen images, and using the correspondence points leads to a pretty clean mosaic. However, to make this process more robust for more images, we need to implement RANSAC. This algorithm works by first choosing 4 of the correspondencies at random and computing the homography matrix H using them. Then, we calculate all of the "inliers" for that homography, which are all of the correspondencies where after warping the first image's points, they fall within a distance of epsilon from the corresponding point in the second image. After repeating this process 10,000 times, we take the largest group of inliers that we found so far and compute a final homography matrix. This gives us a very clean transformation between the two images. Here is the result for the kitchen images we've been using so far:
-    </p>
+    <center><h4>Minion (Bob)</h4></center>
     <div class="container">
 	<figure>
-	    <img src="assets/1.jpeg"/>
-	    <figcaption>Kitchen (Left)</figcaption>
+	    <img src="assets/minion1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/auto_mosaic_1-2.jpeg"/>
-	    <figcaption>Automatically Stitched Mosaic</figcaption>
+	    <img src="assets/minion3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/2.jpeg"/>
-	    <figcaption>Kitchen (Right)</figcaption>
-	</figure>
-    </div>
-    <h3>Results</h3>
-    <p>
-	Here are the final results using automatic feature matching and RANSAC to automate mosaic stitching! We can now compare them with the manual process from part A. They seem very similar, but zooming into them each shows slightly more cleanly blended results for the automatic process.
-    </p>
-    <div class="container">
-	<figure>
-	    <img src="assets/mosaic_1-2.jpeg"/>
-	    <figcaption>Manual</figcaption>
-	</figure>
-	<figure>
-	    <img src="assets/auto_mosaic_1-2.jpeg"/>
-	    <figcaption>Automatic</figcaption>
+	    <img src="assets/minion5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
 	</figure>
     </div>
     <div class="container">
 	<figure>
-	    <img src="assets/mosaic_room_left-room_right.jpeg"/>
-	    <figcaption>Manual</figcaption>
+	    <img src="assets/minion7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/auto_mosaic_room_left-room_right.jpeg"/>
-	    <figcaption>Automatic</figcaption>
+	    <img src="assets/minion10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/minion20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/minion.png"/>
+	    <figcaption>Bob (Original)</figcaption>
+	</figure>
+    </div>
+    <center><h4>Crochet Ducky</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/ducky1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/ducky3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/ducky5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
 	</figure>
     </div>
     <div class="container">
 	<figure>
-	    <img src="assets/mosaic_stuffs_bottom-stuffs_top.jpeg"/>
-	    <figcaption>Manual</figcaption>
+	    <img src="assets/ducky7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
 	</figure>
 	<figure>
-	    <img src="assets/auto_mosaic_stuffs_bottom-stuffs_top.jpeg"/>
-	    <figcaption>Automatic</figcaption>
+	    <img src="assets/ducky10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/ducky20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/ducky.png"/>
+	    <figcaption>Crochet Ducky (Original)</figcaption>
 	</figure>
     </div>
-    <h3>Conclusion</h3>
+    <h4>1.7.1 Editing Hand-Drawn and Web Images</h4>
     <p>
-	This project was pretty interesting, and it was great to be able to automate a process that would normally require a lot of effort in manual labeling.
+	With the ability to edit images, I can try to 'edit' hand drawn images or turn nonrealistic images into more real-looking ones. Here are the results:
     </p>
+    <center><h4>Minecraft Painting (Skull)</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/skull1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/skull3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/skull5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/skull7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/skull10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/skull20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/skull.jpg"/>
+	    <figcaption>MC Skull (Original)</figcaption>
+	</figure>
+    </div>
+    <center><h4>Hand Drawn Horse</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/horse1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/horse3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/horse5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/horse7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/horse10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/horse20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/horse.png"/>
+	    <figcaption>Horse Drawing (Original)</figcaption>
+	</figure>
+    </div>
+    <center><h4>Hand Drawn Cat?</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/cat1.png">
+	    <figcaption>SDEdit with i_start=1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat3.png"/>
+	    <figcaption>SDEdit with i_start=3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat5.png"/>
+	    <figcaption>SDEdit with i_start=5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/cat7.png">
+	    <figcaption>SDEdit with i_start=7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat10.png"/>
+	    <figcaption>SDEdit with i_start=10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat20.png"/>
+	    <figcaption>SDEdit with i_start=20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat.png"/>
+	    <figcaption>Cat Drawing (Original)</figcaption>
+	</figure>
+    </div>
+    <h4>1.7.2 Inpainting</h4>
     <p>
-	For part A, one of the most interesting things I learned was how well the pictures had to be taken. Despite my best efforts zooming into each pixel and ensuring the labeliing process was as good as it could be, if I moved the center of projection for the images slightly, my image warping and mosaic stiching process would still lead to lots of artifacts and ultimately ugly mosaics.
+	I then implemented image inpainting by masking out a portion of the image and adding noise to the masked portion before running the iterative denoising process. Here are the results of inpainting:
     </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/campanile.png">
+	    <figcaption>Campanile (Original)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_mask.png"/>
+	    <figcaption>Mask</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile_hole.png"/>
+	    <figcaption>Hole</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/inpainted_campanile.png"/>
+	    <figcaption>Inpainted</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/minion_banana.png">
+	    <figcaption>Minion with BANANA (Original)</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/minion_banana_mask.png"/>
+	    <figcaption>Mask</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/minion_banana_hole.png"/>
+	    <figcaption>Hole</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/inpainted_minion_banana.png"/>
+	    <figcaption>Inpainted - banana gone :0</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/dog.png">
+	    <figcaption>Dog</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_mask.png"/>
+	    <figcaption>Mask</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_hole.png"/>
+	    <figcaption>Hole</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/inpainted_dog.png"/>
+	    <figcaption>Inpainted - Dog Hiding Behind Hat</figcaption>
+	</figure>
+    </div>
+    <h4>1.7.3 Text-Conditional Image-to-image Translation</h4>
     <p>
-	For part B, one of the coolest things I learned was how well the feature matching process worked, especially with RANSAC. In the intitial stages of finding Harris Corners and using ANMS, I saw there were still a lot of corners that did not have corresponding corners across the two images. I was really impressed by how the feature matching process could be really simple (l2 distances and Lowe's trick), yet it could still having incorrect correspondencies that would completely mess up the homography matrix.
+	Now instead of having the model edit the image with whatever it wants, I used text to prompt the edits. Here are the results:
     </p>
+    <center><h4>Campanile with Text Prompt: "a rocket ship"</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/rocket_campanile1.png">
+	    <figcaption>Noise Level 1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_campanile3.png"/>
+	    <figcaption>Noise Level 3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_campanile5.png"/>
+	    <figcaption>Noise Level 5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/rocket_campanile7.png">
+	    <figcaption>Noise Level 7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_campanile10.png"/>
+	    <figcaption>Noise Level 10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/rocket_campanile20.png"/>
+	    <figcaption>Noise Level 20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/campanile.png"/>
+	    <figcaption>Campanile (Original)</figcaption>
+	</figure>
+    </div>
+    <center><h4>Cat with Text Prompt: "a photo of a dog"</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/dog_cat1.png">
+	    <figcaption>Noise Level 1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_cat3.png"/>
+	    <figcaption>Noise Level 3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_cat5.png"/>
+	    <figcaption>Noise Level 5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/dog_cat7.png">
+	    <figcaption>Noise Level 7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_cat10.png"/>
+	    <figcaption>Noise Level 10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/dog_cat20.png"/>
+	    <figcaption>Noise Level 20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/cat.jpg"/>
+	    <figcaption>Cat (Original)</figcaption>
+	</figure>
+    </div>
+    <center><h4>Desert with Text Prompt: "a lithograph of waterfalls"</h4></center>
+    <div class="container">
+	<figure>
+	    <img src="assets/waterfall_desert1.png">
+	    <figcaption>Noise Level 1</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/waterfall_desert3.png"/>
+	    <figcaption>Noise Level 3</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/waterfall_desert5.png"/>
+	    <figcaption>Noise Level 5</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/waterfall_desert7.png">
+	    <figcaption>Noise Level 7</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/waterfall_desert10.png"/>
+	    <figcaption>Noise Level 10</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/waterfall_desert20.png"/>
+	    <figcaption>Noise Level 20</figcaption>
+	</figure>
+	<figure>
+	    <img src="assets/desert.png"/>
+	    <figcaption>Desert (Original)</figcaption>
+	</figure>
+    </div>
+    <h4>1.8 Visual Anagrams</h4>
+    <p>
+	Now with the model, we can make visual anagrams. Each anagram averages the noise from one image and the noise from another flipped image at each step, which creates the effect of looking like the first image when viewed normally yet looking like the second image when viewed upside down. Here are the results of visual anagrams:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/fire_man_anagram.png">
+	    <figcaption>Campfire</figcaption>
+	</figure>
+	<figure>
+	    <img class="flipped" src="assets/fire_man_anagram.png"/>
+	    <figcaption>Old Man</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/waterfall_man_anagram.png">
+	    <figcaption>Waterfall</figcaption>
+	</figure>
+	<figure>
+	    <img class="flipped" src="assets/waterfall_man_anagram.png"/>
+	    <figcaption>Man</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/snowy_hat_anagram.png">
+	    <figcaption>Snowy Mountain Village</figcaption>
+	</figure>
+	<figure>
+	    <img class="flipped" src="assets/snowy_hat_anagram.png"/>
+	    <figcaption>Man Wearing Hat</figcaption>
+	</figure>
+    </div>
+    <h4>1.9 Hybrid Images</h4>
+    <p>
+	Just like with visual anagrams, we can use a very similar process to generate hybrid images. These images look like one thing close up but look like a completely different image when viewed from farther away. We achieve this by running a low pass filter on the noise estimate for one prompt, and then running a high pass filter on the noise estimate for the other prompt. Summing the two resulting noise estimates gives us the hybrid image. Here are my results from this process:
+    </p>
+    <div class="container">
+	<figure>
+	    <img src="assets/skull_waterfall_hybrid.png">
+	    <figcaption>Waterfall (close), Skull (far)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/village_fire_hybrid.png">
+	    <figcaption>People Around Campfire (close), Snowy Mountain Village (far)</figcaption>
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img src="assets/skull_dog_hybrid.png">
+	    <figcaption>Dog (close), Skull (far)</figcaption>
+	</figure>
+    </div>
+    <h2>Part B - Diffusion Models from Scratch!</h2>
+    <h3>Part 1: Training a Single-Step Denoising Net</h3>
+    <h4>1.1 Implementing the UNet</h4>
+    <p>
+	I started off by implementing the denoiser as a UNet, following the structure given in the spec. (No deliverables in this section)
+    </p>
+    <h4>1.2 Using the UNet to Train a Denoiser</h4>
+    <p>
+	To visualize the noising process that our denoiser will work with, I added varying levels of noise to MNIST digits. The results are shown below:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig3.png">
+	</figure>
+    </div>
+    <h4>1.2.1 Training</h4>
+    <p>
+	Now that the architecture was set up, I trained the model on images noised with a variance of 0.5 over 5 epochs using the suggested hyperparameters on the MNIST training dataset. The results are shown in the following training loss curve:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig4.png">
+	</figure>
+    </div>
+    <p>
+	I also ran the model on the test set after the 1st and 5th training epoch. Here are the results:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig5.png">
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig6.png">
+	</figure>
+    </div>
+    <h4>1.2.2 Out-of-Distribution Testing</h4>
+    <p>
+	Even though the model was trained on images noised with a variance of 0.5, it can still be used on images with different noise levels to varying degrees of success. Here were the results of sampling the test set with out-of-distribution noise levels:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig7_1.png">
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig7_2.png">
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig7_3.png">
+	</figure>
+    </div>
+    <h3>Part 2: Training a Diffusion Model</h3>
+    <h4>2.1 Adding Time Conditioning to UNet</h4>
+     <p>
+	Since we don't want to have to train a new model for every new noise level, we can just train a single UNet with time conditioning. Implementing this UNet is extremely similar to the previous one, and we just embed the timestep into our existing model using FCBlocks. 
+    </p>
+    <h4>2.2 Training the UNet</h4>
+    <p>
+	With this new architecture, the training process is also slightly different. For every image we pick from the test dataset, we pick a random timestep t and noise the image based on the chosen value of t. Then we train the denoiser to predict the level of noise in the noisy image. Here is the training loss curve for this process:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig10.png">
+	</figure>
+    </div>
+    <h4>2.3 Sampling from the UNet</h4>
+    <p>
+	I also sampled the model using the test dataset every few epochs, and here were the results of the sampling for epochs 5 and 20: 
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/time_epoch5.png">
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/time_epoch20.png">
+	</figure>
+    </div>
+    <h4>2.4 Adding Class-Conditioning to UNet</h4>
+    <p>
+	Since the MNIST dataset is images of digits, we can control which digits we want to generate images of by conditioning the UNet on 10 classes (each digit). This modification is similar to how we added time conditioning to the UNet previously, except this time we encode the class as a one-hot vector and implement a 10% dropout to still allow for the non-conditioned use case. Then we can train the model with almost the same process as before but just incorporating the conditioning vector c. Here is the training loss curve for this process:
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/fig11.png">
+	</figure>
+    </div>
+    <h4>2.5 Sampling from the Class-Conditioned UNet</h4>
+    <p>
+	Here is the result of sampling the new class-conditioned UNet on epochs 5 and 20 (I used a gamma value of 5.0):
+    </p>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/class_epoch5.png">
+	</figure>
+    </div>
+    <div class="container">
+	<figure>
+	    <img class="big" src="assets/b/class_epoch20.png">
+	</figure>
+    </div>
+    <h2>Conclusion</h2>
+    <p>
+	It was great to see how we could use the diffusion model in part A to modify or generate images in all sorts of ways. I didn't have the best background in machine learning entering this project, so I definitely learned a lot about the struggles of dealing with tensor shapes and debugging garbage outputs when training diffusion models in part B. 
+    </p>
+
 
 </body>
 <style>
@@ -523,17 +776,20 @@
     img {
 	max-height: 350px;
 	max-width: 300px;
+	width: 200px;
 	border: 1px solid black;
     }
 
-    .full-size {
-	width: 300px;
+    .big {
+	max-height: 700px;
+	max-width: 700px;
+	width: 700px;
     }
 
-    .solo {
-	max-height: 2000px;
-	max-width: 1000px;
-	width: 1000px;
+    .flipped {
+	transform: scaleY(-1);
     }
+
+
 </style>
 </html>
